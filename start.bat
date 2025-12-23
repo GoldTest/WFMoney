@@ -2,7 +2,7 @@
 setlocal
 
 echo ==========================================
-echo    EasyMoney AI - Windows Launcher
+echo    WFMoney - Windows Launcher
 echo ==========================================
 echo.
 
@@ -24,11 +24,11 @@ if %ERRORLEVEL% neq 0 (
 
 :: 3. Start Backend
 echo [3/4] Starting Backend (Port 8000)...
-start "EasyMoney_Backend" cmd /k "python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000"
+start "WFMoney_Backend" cmd /k "python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000"
 
 :: 4. Start Frontend
 echo [4/4] Starting Frontend (Port 8080)...
-start "EasyMoney_Frontend" cmd /k "cd frontend && python -m http.server 8080"
+start "WFMoney_Frontend" cmd /k "cd frontend && python -m http.server 8080"
 
 echo.
 echo ==========================================

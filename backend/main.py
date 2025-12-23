@@ -23,7 +23,7 @@ class PositionRecord(BaseModel):
     units: float
     price: float
 
-app = FastAPI(title="EasyMoney API")
+app = FastAPI(title="WFMoney API")
 
 # Enable CORS for frontend
 app.add_middleware(
