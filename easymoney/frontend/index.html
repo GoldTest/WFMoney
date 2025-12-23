@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EasyMoney 市场监控面板</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body class="bg-gray-900 text-white font-sans">
+    <div class="container mx-auto px-4 py-8">
+        <header class="mb-8 flex justify-between items-center">
+            <h1 class="text-3xl font-bold text-blue-400">EasyMoney 智能面板</h1>
+            <div class="flex items-center space-x-6">
+                <nav class="hidden md:flex space-x-4 mr-4">
+                    <button onclick="showTab('market')" id="tab-market" class="text-blue-400 font-semibold border-b-2 border-blue-400 pb-1">市场行情</button>
+                    <button onclick="showTab('position')" id="tab-position" class="text-gray-400 hover:text-white transition pb-1">仓位管理</button>
+                </nav>
+                <div id="status-badge" class="bg-yellow-900 text-yellow-200 px-3 py-1 rounded-full text-xs font-medium">
+                    演示模式 (模拟分析)
+                </div>
+                <button onclick="toggleConfig()" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm transition flex items-center border border-gray-600">
+                    <span class="mr-2">⚙️</span> 设置
+                </button>
+                <div id="status" class="text-sm text-gray-400">正在连接...</div>
+            </div>
+        </header>
+
+        <!-- Config Panel (Hidden by default) -->
+        <div id="config-panel" class="hidden bg-gray-800 border border-gray-700 p-6 rounded-xl mb-8 shadow-2xl">
+            <h3 class="text-lg font-semibold mb-4 flex items-center">
+                <span class="mr-2">🛠️</span> AI 配置
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <label class="block text-sm text-gray-400 mb-2">OpenAI API Key</label>
+                    <input type="password" id="api-key-input" placeholder="sk-..." class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 text-white">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-2">API 代理地址 (可选)</label>
+                    <input type="text" id="base-url-input" placeholder="https://api.openai.com/v1" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 text-white">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-2">模型名称</label>
+                    <input type="text" id="model-name-input" placeholder="gpt-4o" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 text-white">
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end space-x-4">
+                <button onclick="toggleConfig()" class="px-4 py-2 text-gray-400 hover:text-white transition">取消</button>
+                <button onclick="saveConfig()" class="bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded-lg font-semibold transition">保存设置</button>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div id="tab-content-market">
+            <!-- Market Overview -->
+            <section class="mb-12">
+                <h2 class="text-xl font-semibold mb-4">全球核心资产行情</h2>
+                <div id="indices-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Index cards will be injected here -->
+                </div>
+            </section>
+
+            <!-- Chart Section -->
+            <section class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-2 bg-gray-800 p-6 rounded-lg shadow-xl">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 id="chart-title" class="text-xl font-semibold">加载中...</h2>
+                        <div class="flex gap-2">
+                            <select id="period-select" onchange="updateChart()" class="bg-gray-700 text-white px-3 py-1 rounded border border-gray-600 focus:outline-none">
+                                <option value="1mo">1 个月</option>
+                                <option value="3mo">3 个月</option>
+                                <option value="6mo">6 个月</option>
+                                <option value="1y" selected>1 年</option>
+                                <option value="2y">2 年</option>
+                                <option value="5y">5 年</option>
+                                <option value="max">全部历史</option>
+                            </select>
+                            <input id="symbol-input" type="text" placeholder="代码 (如 AAPL)" class="bg-gray-700 text-white px-3 py-1 rounded border border-gray-600 focus:outline-none focus:border-blue-500 w-32">
+                            <button onclick="updateChart()" class="bg-blue-600 hover:bg-blue-700 px-4 py-1 rounded transition">查看</button>
+                        </div>
+                    </div>
+                    <div id="chart-container" class="h-[400px]"></div>
+                    <div id="rsi-container" class="h-[100px] mt-4 border-t border-gray-700 pt-2"></div>
+                    <div id="macd-container" class="h-[100px] mt-4 border-t border-gray-700 pt-2"></div>
+                </div>
+
+                <!-- AI Analysis Section -->
+                <div class="bg-gray-800 p-6 rounded-lg shadow-xl">
+                    <h2 class="text-xl font-semibold mb-4">AI 市场深度分析</h2>
+                    <div id="ai-loading" class="hidden text-blue-400 animate-pulse">AI 正在深度分析行情数据并评估仓位策略...</div>
+                    <div id="ai-content" class="text-gray-300 text-sm leading-relaxed whitespace-pre-line">
+                        请输入标的代码以获取 AI 分析报告。
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="getAIAnalysis()" id="ai-btn" class="mt-6 flex-1 bg-green-600 hover:bg-green-700 py-2 rounded font-semibold transition">
+                            获取 AI 分析 & 策略建议
+                        </button>
+                        <button onclick="toggleSimulationPanel()" class="mt-6 bg-amber-600 text-white px-4 py-2 rounded hover:bg-amber-700 transition flex items-center gap-2">
+                            <span>🧪</span> 预演功能
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Simulation Panel (Hidden by default) -->
+                <div id="simulation-panel" class="hidden mb-6 p-4 bg-gray-700 border border-gray-600 rounded-xl">
+                    <div class="flex flex-wrap items-center gap-4">
+                        <div class="flex items-center gap-2">
+                            <label class="text-sm font-medium text-gray-300">开始日期:</label>
+                            <input type="date" id="sim-start-date" class="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="text-sm font-medium text-gray-300">预演天数:</label>
+                            <input type="number" id="sim-days" value="5" min="1" max="30" class="w-16 bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="text-sm font-medium text-gray-300">间隔 (秒):</label>
+                            <input type="number" id="sim-interval" value="20" min="5" class="w-16 bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="flex gap-2 ml-auto">
+                             <button onclick="resetSimPositions()" class="bg-gray-600 text-white px-3 py-1.5 rounded-lg hover:bg-gray-700 transition text-sm font-medium" title="清除当前品种的持仓记录">
+                                 重置仓位
+                             </button>
+                             <button id="start-sim-btn" onclick="startSimulation()" class="bg-blue-600 text-white px-4 py-1.5 rounded-lg hover:bg-blue-700 transition text-sm font-medium">
+                                 开始预演
+                             </button>
+                            <button id="stop-sim-btn" onclick="stopSimulation()" disabled class="bg-gray-500 text-white px-4 py-1.5 rounded-lg transition text-sm font-medium cursor-not-allowed">
+                                停止
+                            </button>
+                        </div>
+                    </div>
+                    <div id="sim-progress" class="hidden mt-3">
+                        <div class="flex justify-between text-xs text-gray-400 mb-1">
+                            <span id="sim-status-text">正在准备预演...</span>
+                            <span id="sim-progress-text">0/0 天</span>
+                        </div>
+                        <div class="w-full bg-gray-600 rounded-full h-1.5">
+                            <div id="sim-progress-bar" class="bg-blue-500 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Position Management Tab -->
+        <div id="tab-content-position" class="hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Left: Position Config & Summary -->
+                <div class="lg:col-span-1 space-y-6">
+                    <div class="bg-gray-800 p-6 rounded-lg shadow-xl">
+                        <h2 class="text-xl font-semibold mb-4">资产仓位配置</h2>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">当前品种</label>
+                                <input type="text" id="pos-symbol-input" readonly class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-gray-300">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">总金额 (对应100份)</label>
+                                <input type="number" id="pos-budget-input" placeholder="输入该品种的总投资额" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:border-blue-500 outline-none">
+                            </div>
+                            <button onclick="savePositionConfig()" class="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded font-semibold transition">更新配置</button>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-800 p-6 rounded-lg shadow-xl">
+                        <h2 class="text-xl font-semibold mb-4">仓位状态摘要</h2>
+                        <div id="pos-summary-content" class="space-y-3">
+                            <div class="flex justify-between"><span class="text-gray-400">已用仓位:</span> <span id="summary-used" class="font-bold">0/100</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">持仓成本:</span> <span id="summary-cost" class="font-bold text-blue-400">¥0</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">浮动盈亏:</span> <span id="summary-unrealized" class="font-bold">¥0</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">累计实现盈亏:</span> <span id="summary-realized" class="font-bold">¥0</span></div>
+                            <div class="flex justify-between border-t border-gray-700 pt-2"><span class="text-gray-400 font-semibold">总盈亏:</span> <span id="summary-total-pnl" class="font-bold text-lg">¥0</span></div>
+                            
+                            <div class="w-full bg-gray-700 h-2 rounded-full mt-4">
+                                <div id="summary-progress" class="bg-blue-500 h-2 rounded-full" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Purchase History & Form -->
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="bg-gray-800 p-6 rounded-lg shadow-xl">
+                        <h2 class="text-xl font-semibold mb-4">添加购买记录</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">购买日期</label>
+                                <input type="date" id="record-date" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">购买份数 (1-100)</label>
+                                <input type="number" id="record-units" placeholder="份数" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">购买单价</label>
+                                <input type="number" id="record-price" placeholder="价格" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white">
+                            </div>
+                        </div>
+                        <button onclick="addPositionRecord()" class="mt-4 bg-green-600 hover:bg-green-700 px-6 py-2 rounded font-semibold transition">确认添加</button>
+                    </div>
+
+                    <div class="bg-gray-800 p-6 rounded-lg shadow-xl">
+                        <h2 class="text-xl font-semibold mb-4">购买历史明细</h2>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead class="border-b border-gray-700 text-gray-400 text-sm">
+                                    <tr>
+                                        <th class="py-3 px-4">日期</th>
+                                        <th class="py-3 px-4">类型</th>
+                                        <th class="py-3 px-4">份数</th>
+                                        <th class="py-3 px-4">单价</th>
+                                        <th class="py-3 px-4">盈亏</th>
+                                        <th class="py-3 px-4">AI结论</th>
+                                        <th class="py-3 px-4">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pos-history-table">
+                                    <!-- History rows will be injected here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = "http://localhost:8000/api";
+        let chart;
+        let candleSeries;
+        let ma5Series;
+        let ma20Series;
+        
+        let rsiChart;
+        let rsiSeries;
+        
+        let macdChart;
+        let macdSeries;
+        let signalSeries;
+        let histSeries;
+
+        function initChart() {
+            const chartOptions = {
+                layout: { textColor: '#d1d5db', background: { type: 'solid', color: '#1f2937' } },
+                grid: { vertLines: { color: '#374151' }, horzLines: { color: '#374151' } },
+                timeScale: { borderColor: '#4b5563' },
+            };
+            
+            // Main Chart
+            chart = LightweightCharts.createChart(document.getElementById('chart-container'), chartOptions);
+            candleSeries = chart.addCandlestickSeries({
+                upColor: '#10b981', downColor: '#ef4444', borderVisible: false,
+                wickUpColor: '#10b981', wickDownColor: '#ef4444',
+            });
+            ma5Series = chart.addLineSeries({ color: '#f59e0b', lineWidth: 1, title: 'MA5' });
+            ma20Series = chart.addLineSeries({ color: '#3b82f6', lineWidth: 1, title: 'MA20' });
+
+            // RSI Chart
+            rsiChart = LightweightCharts.createChart(document.getElementById('rsi-container'), {
+                ...chartOptions,
+                timeScale: { visible: false },
+            });
+            rsiSeries = rsiChart.addLineSeries({ color: '#a855f7', lineWidth: 1, title: 'RSI' });
+
+            // MACD Chart
+            macdChart = LightweightCharts.createChart(document.getElementById('macd-container'), {
+                ...chartOptions,
+            });
+            macdSeries = macdChart.addLineSeries({ color: '#3b82f6', lineWidth: 1, title: 'MACD' });
+            signalSeries = macdChart.addLineSeries({ color: '#f59e0b', lineWidth: 1, title: 'Signal' });
+            histSeries = macdChart.addHistogramSeries({
+                color: '#4b5563',
+                lineWidth: 1,
+                title: 'Hist'
+            });
+
+            // Sync time scales
+            chart.timeScale().subscribeVisibleTimeRangeChange(range => {
+                rsiChart.timeScale().setVisibleRange(range);
+                macdChart.timeScale().setVisibleRange(range);
+            });
+            rsiChart.timeScale().subscribeVisibleTimeRangeChange(range => {
+                chart.timeScale().setVisibleRange(range);
+                macdChart.timeScale().setVisibleRange(range);
+            });
+            macdChart.timeScale().subscribeVisibleTimeRangeChange(range => {
+                chart.timeScale().setVisibleRange(range);
+                rsiChart.timeScale().setVisibleRange(range);
+            });
+
+            window.addEventListener('resize', () => {
+                const w = document.getElementById('chart-container').clientWidth;
+                chart.resize(w, 400);
+                rsiChart.resize(w, 100);
+                macdChart.resize(w, 100);
+            });
+        }
+
+        async function fetchIndices() {
+            try {
+                const res = await fetch(`${API_BASE}/market/indices`);
+                const data = await res.json();
+                const grid = document.getElementById('indices-grid');
+                grid.innerHTML = '';
+                
+                Object.entries(data).forEach(([name, info]) => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-blue-500 cursor-pointer transition';
+                    card.onclick = () => {
+                        document.getElementById('symbol-input').value = info.symbol;
+                        document.getElementById('pos-symbol-input').value = info.symbol;
+                        updateChart();
+                        fetchPositionSummary();
+                    };
+                    
+                    const isUp = info.change >= 0;
+                    card.innerHTML = `
+                        <div class="text-gray-400 text-xs font-medium uppercase">${name}</div>
+                        <div class="text-lg font-bold mt-1">${info.price.toFixed(2)}</div>
+                        <div class="text-sm mt-1 ${isUp ? 'text-green-400' : 'text-red-400'}">
+                            ${isUp ? '▲' : '▼'} ${Math.abs(info.pct_change).toFixed(2)}%
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+                document.getElementById('status').innerText = '数据已更新: ' + new Date().toLocaleTimeString();
+            } catch (e) {
+                console.error(e);
+                document.getElementById('status').innerText = 'API 连接失败';
+            }
+        }
+
+        async function updateChart() {
+            const symbol = document.getElementById('symbol-input').value || 'BTC-USD';
+            const period = document.getElementById('period-select').value || '1y';
+            document.getElementById('chart-title').innerText = `${symbol} (${period})`;
+            document.getElementById('pos-symbol-input').value = symbol;
+            fetchPositionSummary();
+            
+            try {
+                // Ensure charts are initialized
+                if (!chart || !candleSeries) {
+                    console.warn("Chart not initialized yet");
+                    return;
+                }
+
+                const res = await fetch(`${API_BASE}/market/history?symbol=${symbol}&period=${period}`);
+                const data = await res.json();
+                
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+
+                if (!data || data.length === 0) return;
+
+                const chartData = data.map(d => {
+                    if (!d.Date) return null;
+                    return {
+                        time: d.Date.split(' ')[0],
+                        open: d.Open,
+                        high: d.High,
+                        low: d.Low,
+                        close: d.Close
+                    };
+                }).filter(i => i !== null);
+                
+                const ma5Data = data.filter(d => d.MA5 > 0 && d.Date).map(d => ({
+                    time: d.Date.split(' ')[0],
+                    value: d.MA5
+                }));
+
+                const ma20Data = data.filter(d => d.MA20 > 0 && d.Date).map(d => ({
+                    time: d.Date.split(' ')[0],
+                    value: d.MA20
+                }));
+
+                const rsiData = data.filter(d => d.RSI > 0 && d.Date).map(d => ({
+                    time: d.Date.split(' ')[0],
+                    value: d.RSI
+                }));
+
+                const macdData = data.filter(d => d.MACD !== 0 && d.Date).map(d => ({
+                    time: d.Date.split(' ')[0],
+                    value: d.MACD
+                }));
+
+                const signalData = data.filter(d => d.Signal !== 0 && d.Date).map(d => ({
+                    time: d.Date.split(' ')[0],
+                    value: d.Signal
+                }));
+
+                const histData = data.filter(d => d.MACD_Hist !== 0 && d.Date).map(d => ({
+                    time: d.Date.split(' ')[0],
+                    value: d.MACD_Hist,
+                    color: d.MACD_Hist >= 0 ? '#10b981' : '#ef4444'
+                }));
+
+                if (candleSeries) candleSeries.setData(chartData);
+                if (ma5Series) ma5Series.setData(ma5Data);
+                if (ma20Series) ma20Series.setData(ma20Data);
+                
+                if (rsiSeries) rsiSeries.setData(rsiData);
+                
+                if (macdSeries) macdSeries.setData(macdData);
+                if (signalSeries) signalSeries.setData(signalData);
+                if (histSeries) histSeries.setData(histData);
+
+                if (chart) chart.timeScale().fitContent();
+            } catch (e) {
+                console.error("Failed to update chart", e);
+            }
+        }
+
+        let isSimulationRunning = false;
+        let simAbortController = null;
+
+        function toggleSimulationPanel() {
+            const panel = document.getElementById('simulation-panel');
+            panel.classList.toggle('hidden');
+            
+            // Set default date to 7 days ago if not set
+            const dateInput = document.getElementById('sim-start-date');
+            if (!dateInput.value) {
+                const d = new Date();
+                d.setDate(d.getDate() - 7);
+                dateInput.value = d.toISOString().split('T')[0];
+            }
+        }
+
+        function stopSimulation() {
+             isSimulationRunning = false;
+             if (simAbortController) simAbortController.abort();
+             
+             document.getElementById('start-sim-btn').disabled = false;
+             document.getElementById('start-sim-btn').classList.remove('opacity-50');
+             document.getElementById('stop-sim-btn').disabled = true;
+             document.getElementById('stop-sim-btn').classList.add('bg-gray-500', 'cursor-not-allowed');
+             document.getElementById('stop-sim-btn').classList.remove('bg-red-600', 'hover:bg-red-700');
+             
+             document.getElementById('sim-status-text').innerText = '预演已停止';
+         }
+
+         async function resetSimPositions() {
+             const symbol = (document.getElementById('symbol-input').value || 'BTC-USD').toUpperCase();
+             if (!confirm(`确定要清除 ${symbol} 的所有持仓记录吗？`)) return;
+             
+             try {
+                 const res = await fetch(`${API_BASE}/positions/clear?symbol=${symbol}`, { method: 'DELETE' });
+                 if (res.ok) {
+                     alert('仓位已重置');
+                     fetchPositionSummary();
+                 }
+             } catch (e) {
+                 console.error(e);
+                 alert('重置失败');
+             }
+         }
+
+        async function startSimulation() {
+            const symbol = (document.getElementById('symbol-input').value || 'BTC-USD').toUpperCase();
+            if (!symbol) {
+                alert('请先选择一个品种');
+                return;
+            }
+
+            const startDateStr = document.getElementById('sim-start-date').value;
+            const totalDays = parseInt(document.getElementById('sim-days').value);
+            const intervalSec = parseInt(document.getElementById('sim-interval').value);
+
+            if (!startDateStr) {
+                alert('请选择开始日期');
+                return;
+            }
+
+            // 1. 获取所有可用的历史日期
+            document.getElementById('sim-status-text').innerText = '正在获取历史数据日期...';
+            document.getElementById('sim-progress').classList.remove('hidden');
+            
+            let allDates = [];
+            try {
+                const res = await fetch(`${API_BASE}/market/history?symbol=${symbol}&period=2y`);
+                const historyData = await res.json();
+                if (historyData.error) throw new Error(historyData.error);
+                allDates = historyData.map(d => d.Date.split(' ')[0]);
+            } catch (e) {
+                alert('无法获取历史数据日期: ' + e.message);
+                document.getElementById('sim-progress').classList.add('hidden');
+                return;
+            }
+
+            // 2. 找到开始日期在列表中的位置
+            let startIndex = allDates.findIndex(d => d >= startDateStr);
+            if (startIndex === -1) {
+                alert('在历史数据中找不到选定的开始日期或之后的日期');
+                document.getElementById('sim-progress').classList.add('hidden');
+                return;
+            }
+
+            isSimulationRunning = true;
+            document.getElementById('start-sim-btn').disabled = true;
+            document.getElementById('start-sim-btn').classList.add('opacity-50');
+            document.getElementById('stop-sim-btn').disabled = false;
+            document.getElementById('stop-sim-btn').classList.remove('bg-gray-500', 'cursor-not-allowed');
+            document.getElementById('stop-sim-btn').classList.add('bg-red-600', 'hover:bg-red-700');
+            
+            let simulatedCount = 0;
+            const targetCount = Math.min(totalDays, allDates.length - startIndex);
+
+            while (isSimulationRunning && simulatedCount < targetCount) {
+                const dateStr = allDates[startIndex + simulatedCount];
+                
+                // Update UI
+                document.getElementById('sim-status-text').innerText = `正在分析日期: ${dateStr}`;
+                document.getElementById('sim-progress-text').innerText = `${simulatedCount + 1}/${targetCount} 天`;
+                document.getElementById('sim-progress-bar').style.width = `${((simulatedCount + 1) / targetCount) * 100}%`;
+
+                // Trigger AI Analysis for this specific date
+                await getAIAnalysis(dateStr);
+
+                simulatedCount++;
+                if (simulatedCount < targetCount && isSimulationRunning) {
+                    document.getElementById('sim-status-text').innerText = `等待下一交易日: ${allDates[startIndex + simulatedCount]} (${intervalSec}秒)...`;
+                    // Wait for interval
+                    await new Promise(resolve => setTimeout(resolve, intervalSec * 1000));
+                }
+            }
+
+            if (isSimulationRunning) {
+                document.getElementById('sim-status-text').innerText = '预演完成！';
+                stopSimulation();
+            }
+        }
+
+        async function getAIAnalysis(simDate = null) {
+            const symbol = document.getElementById('symbol-input').value || 'BTC-USD';
+            const btn = document.getElementById('ai-btn');
+            const loading = document.getElementById('ai-loading');
+            const content = document.getElementById('ai-content');
+
+            // Handle AbortController for simulation
+            let currentSignal = null;
+            if (simDate) {
+                simAbortController = new AbortController();
+                currentSignal = simAbortController.signal;
+            }
+
+            if (!simDate) {
+                btn.disabled = true;
+                btn.innerText = "🤖 AI 深度分析中...";
+            }
+            
+            loading.classList.remove('hidden');
+            content.classList.remove('hidden');
+            content.innerHTML = simDate ? `<div class="p-4 bg-blue-900/30 border border-blue-500 rounded-lg mb-4">🧪 <strong>预演模式</strong>: 正在分析 ${simDate}...</div>` : '<div class="flex items-center gap-3 p-4"><div class="animate-spin rounded-full h-5 w-5 border-b-2 border-green-500"></div><span>正在深度分析行情数据并评估仓位策略...</span></div>';
+
+            try {
+                const url = new URL(`${API_BASE}/market/analyze`);
+                url.searchParams.append('symbol', symbol);
+                if (simDate) {
+                    url.searchParams.append('sim_date', simDate);
+                }
+                
+                const response = await fetch(url, { signal: currentSignal });
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.error || `Request failed with status ${response.status}`);
+                }
+                
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                
+                let fullText = "";
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value, { stream: true });
+                    fullText += chunk;
+                    
+                    // Real-time markdown-ish formatting
+                    let formattedText = fullText
+                        .replace(/### (.*)/g, '<h3 class="text-lg font-bold mt-4 mb-2 text-blue-300">$1</h3>')
+                        .replace(/\*\*(.*)\*\*/g, '<strong class="text-white">$1</strong>')
+                        .replace(/- (.*)/g, '<li class="ml-4">$1</li>')
+                        .replace(/\n/g, '<br>');
+                    
+                    content.innerHTML = formattedText;
+                     // Auto-scroll to bottom if needed
+                     content.scrollTop = content.scrollHeight;
+                 }
+                 // Refresh position summary after analysis (in case AI executed a trade)
+                 fetchPositionSummary();
+             } catch (e) {
+                if (e.name === 'AbortError') {
+                    console.log('Analysis aborted');
+                    content.innerHTML += '<div class="text-amber-500 mt-2 italic">⚠️ 分析已由用户停止。</div>';
+                } else {
+                    console.error(e);
+                    content.innerHTML += `<div class="text-red-500 mt-2 p-2 bg-red-900/20 border border-red-500/50 rounded">❌ 错误: ${e.message}</div>`;
+                }
+            } finally {
+                if (!simDate) {
+                    btn.disabled = false;
+                    btn.innerText = "获取 AI 分析 & 策略建议";
+                }
+                loading.classList.add('hidden');
+            }
+        }
+
+        function toggleConfig() {
+            const panel = document.getElementById('config-panel');
+            panel.classList.toggle('hidden');
+        }
+
+        function showTab(tab) {
+            const marketContent = document.getElementById('tab-content-market');
+            const positionContent = document.getElementById('tab-content-position');
+            const marketBtn = document.getElementById('tab-market');
+            const positionBtn = document.getElementById('tab-position');
+
+            if (tab === 'market') {
+                marketContent.classList.remove('hidden');
+                positionContent.classList.add('hidden');
+                marketBtn.className = "text-blue-400 font-semibold border-b-2 border-blue-400 pb-1";
+                positionBtn.className = "text-gray-400 hover:text-white transition pb-1";
+            } else {
+                marketContent.classList.add('hidden');
+                positionContent.classList.remove('hidden');
+                positionBtn.className = "text-blue-400 font-semibold border-b-2 border-blue-400 pb-1";
+                marketBtn.className = "text-gray-400 hover:text-white transition pb-1";
+                fetchPositionSummary();
+            }
+        }
+
+        async function fetchPositionSummary() {
+            const symbol = document.getElementById('pos-symbol-input').value || 'BTC-USD';
+            try {
+                const res = await fetch(`${API_BASE}/positions/summary?symbol=${symbol}`);
+                const data = await res.json();
+                
+                document.getElementById('pos-budget-input').value = data.total_budget || '';
+                document.getElementById('summary-used').innerText = `${data.used_units}/100`;
+                
+                // 1. Invested Amount (Cost)
+                const budgetPerUnit = data.total_budget / 100;
+                const investedAmount = data.used_units * budgetPerUnit;
+                document.getElementById('summary-cost').innerText = `¥${investedAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                
+                // Clear any existing extra rows to avoid duplication
+                const parent = document.getElementById('pos-summary-content');
+                const extras = parent.querySelectorAll('.extra-info');
+                extras.forEach(e => e.remove());
+
+                // 2. Add Average Cost Price as a sub-info
+                const avgPriceEl = document.createElement('div');
+                avgPriceEl.className = "flex justify-between text-xs text-gray-500 extra-info";
+                avgPriceEl.innerHTML = `<span>持仓均价:</span> <span>${data.avg_cost_price.toFixed(2)}</span>`;
+                document.getElementById('summary-cost').parentNode.after(avgPriceEl);
+
+                // 3. Current Market Value
+                const currentValue = investedAmount + data.unrealized_pnl;
+                const valueEl = document.createElement('div');
+                valueEl.className = "flex justify-between extra-info";
+                valueEl.innerHTML = `<span class="text-gray-400">当前市值:</span> <span class="font-bold">¥${currentValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>`;
+                document.getElementById('summary-unrealized').parentNode.before(valueEl);
+                
+                const formatPnL = (val, showPlus = true) => {
+                    const el = document.createElement('span');
+                    const prefix = (showPlus && val > 0) ? '+' : '';
+                    el.innerText = prefix + `¥${val.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                    el.className = val >= 0 ? 'text-green-400' : 'text-red-400';
+                    return el.outerHTML;
+                };
+
+                // 4. Update P&L displays
+                document.getElementById('summary-unrealized').innerHTML = `<span class="text-gray-400">浮动盈亏:</span> ${formatPnL(data.unrealized_pnl)}`;
+                document.getElementById('summary-realized').innerHTML = `<span class="text-gray-400">累计实现盈亏:</span> ${formatPnL(data.total_realized_pnl)}`;
+                document.getElementById('summary-total-pnl').innerHTML = formatPnL(data.total_pnl);
+                
+                const progress = (data.used_units / 100) * 100;
+                document.getElementById('summary-progress').style.width = `${progress}%`;
+                
+                // 5. Update History Table
+                const historyTable = document.getElementById('pos-history-table');
+                historyTable.innerHTML = '';
+                data.history.forEach((record, index) => {
+                    const row = document.createElement('tr');
+                    row.className = "border-b border-gray-700 hover:bg-gray-750 transition";
+                    
+                    let typeLabel = "";
+                    if (record.units > 0) typeLabel = '<span class="text-green-400">买入</span>';
+                    else if (record.units < 0) typeLabel = '<span class="text-red-400">卖出</span>';
+                    else typeLabel = '<span class="text-gray-500">不操作</span>';
+
+                    const conclusion = record.conclusion || record.reason || '-';
+
+                    row.innerHTML = `
+                        <td class="py-3 px-4 text-sm">${record.date}</td>
+                        <td class="py-3 px-4 text-sm">${typeLabel}</td>
+                        <td class="py-3 px-4 text-sm">${Math.abs(record.units)} 份</td>
+                        <td class="py-3 px-4 text-sm">${record.price.toFixed(2)}</td>
+                        <td class="py-3 px-4 text-sm">${record.units !== 0 ? (record.units < 0 ? formatPnL(record.pnl) : '-') : '-'}</td>
+                        <td class="py-3 px-4 text-sm text-gray-400 max-w-xs truncate" title="${conclusion}">${conclusion}</td>
+                        <td class="py-3 px-4 text-sm">
+                            <button onclick="deleteRecord('${symbol}', ${index})" class="text-gray-500 hover:text-red-400 transition"><i class="fas fa-trash"></i></button>
+                        </td>
+                    `;
+                    historyTable.appendChild(row);
+                });
+            } catch (e) {
+                console.error("Failed to fetch position summary", e);
+            }
+        }
+
+        async function savePositionConfig() {
+            const symbol = document.getElementById('pos-symbol-input').value;
+            const budget = document.getElementById('pos-budget-input').value;
+            if (!symbol || !budget) return alert("请先选择品种并输入总金额");
+
+            try {
+                const res = await fetch(`${API_BASE}/positions/config`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symbol, total_budget: parseFloat(budget) })
+                });
+                if (res.ok) {
+                    alert("配置已更新");
+                    fetchPositionSummary();
+                }
+            } catch (e) {
+                alert("更新配置失败");
+            }
+        }
+
+        async function addPositionRecord() {
+            const symbol = document.getElementById('pos-symbol-input').value;
+            const date = document.getElementById('record-date').value;
+            const units = document.getElementById('record-units').value;
+            const price = document.getElementById('record-price').value;
+
+            if (!symbol || !date || !units || !price) return alert("请填写完整购买记录信息");
+
+            try {
+                const res = await fetch(`${API_BASE}/positions/record`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        symbol, 
+                        date, 
+                        units: parseFloat(units), 
+                        price: parseFloat(price) 
+                    })
+                });
+                if (res.ok) {
+                    alert("记录已添加");
+                    fetchPositionSummary();
+                    // Clear inputs
+                    document.getElementById('record-units').value = '';
+                    document.getElementById('record-price').value = '';
+                }
+            } catch (e) {
+                alert("添加记录失败");
+            }
+        }
+
+        async function deleteRecord(symbol, index) {
+            if (!confirm("确定要删除这条购买记录吗？")) return;
+            try {
+                const res = await fetch(`${API_BASE}/positions/record?symbol=${symbol}&index=${index}`, {
+                    method: 'DELETE'
+                });
+                if (res.ok) {
+                    fetchPositionSummary();
+                }
+            } catch (e) {
+                alert("删除失败");
+            }
+        }
+
+        async function fetchConfig() {
+            try {
+                const res = await fetch(`${API_BASE}/config`);
+                const config = await res.json();
+                const badge = document.getElementById('status-badge');
+                
+                if (config.is_demo) {
+                    badge.innerText = "演示模式 (模拟分析)";
+                    badge.className = "bg-yellow-900 text-yellow-200 px-3 py-1 rounded-full text-xs font-medium";
+                } else {
+                    badge.innerText = `AI 模式已激活 (${config.model_name})`;
+                    badge.className = "bg-green-900 text-green-200 px-3 py-1 rounded-full text-xs font-medium";
+                }
+                
+                const apiKeyInput = document.getElementById('api-key-input');
+                if (config.api_key && config.api_key !== "Not Set") {
+                    apiKeyInput.placeholder = "已保存 (输入新 Key 以覆盖)";
+                } else {
+                    apiKeyInput.placeholder = "sk-...";
+                }
+                
+                document.getElementById('base-url-input').value = config.base_url !== "Default (OpenAI)" && config.base_url !== null ? config.base_url : "";
+                document.getElementById('model-name-input').value = config.model_name;
+            } catch (e) {
+                console.error("Failed to fetch config", e);
+            }
+        }
+
+        async function saveConfig() {
+            const apiKey = document.getElementById('api-key-input').value;
+            const baseUrl = document.getElementById('base-url-input').value;
+            const modelName = document.getElementById('model-name-input').value;
+            
+            try {
+                const res = await fetch(`${API_BASE}/config`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        api_key: apiKey, 
+                        base_url: baseUrl,
+                        model_name: modelName
+                    })
+                });
+                
+                if (res.ok) {
+                    alert("配置已成功保存！");
+                    toggleConfig();
+                    fetchConfig();
+                    document.getElementById('api-key-input').value = ""; // Clear password field
+                }
+            } catch (e) {
+                alert("保存配置失败");
+                console.error(e);
+            }
+        }
+
+        // Initialize
+        fetchConfig();
+        initChart();
+        fetchIndices();
+        updateChart();
+        setInterval(fetchIndices, 60000); // Update every minute
+    </script>
+</body>
+</html>
