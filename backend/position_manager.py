@@ -1,10 +1,11 @@
 import os
 import json
 from datetime import datetime
+from .config import get_data_path
 
 class PositionManager:
     def __init__(self):
-        self.file_path = os.path.join(os.path.dirname(__file__), "positions.json")
+        self.file_path = str(get_data_path("positions.json"))
         self.positions = self._load_data()
 
     def _load_data(self):

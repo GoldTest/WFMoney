@@ -5,12 +5,10 @@ import diskcache as dc
 import os
 import requests
 from datetime import datetime, timedelta
+from .config import get_data_dir
 
 # Initialize cache in the data directory
-cache = dc.Cache("data/market_cache")
-
-# Setup cache
-cache = dc.Cache("data/market_cache")
+cache = dc.Cache(str(get_data_dir() / "market_cache"))
 
 class MarketDataFetcher:
     @staticmethod

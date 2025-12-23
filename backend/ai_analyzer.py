@@ -3,10 +3,11 @@ import json
 from datetime import datetime
 from openai import OpenAI
 import pandas as pd
+from .config import get_data_path
 
 class AIAnalyzer:
     def __init__(self, api_key=None, base_url=None, model_name=None):
-        self.config_path = os.path.join(os.path.dirname(__file__), "ai_config.json")
+        self.config_path = str(get_data_path("ai_config.json"))
         self.api_key = api_key
         self.base_url = base_url
         self.model_name = model_name

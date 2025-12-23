@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+pydantic
+pandas
+yfinance
+akshare
+diskcache
+requests
+openai
