@@ -32,7 +32,7 @@ WFMoney 是一款基于人工智能的金融行情分析与交易预演系统。
 ## 📂 项目结构
 
 ```text
-ChatWithTrea/
+WFMoney/
 ├── backend/            # Python 后端逻辑
 │   ├── ai_analyzer.py      # AI 分析核心逻辑
 │   ├── position_manager.py # 持仓管理与盈亏计算
